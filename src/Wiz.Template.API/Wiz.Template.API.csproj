@@ -4,7 +4,6 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <AspNetCoreHostingModel>InProcess</AspNetCoreHostingModel>
     <ProjectGuid>{dc7fde71-e38e-4dbd-8a85-effa3bf95118}</ProjectGuid>
-    <UserSecretsId>a01e90ca-fc89-4caf-82af-b1d9ba19ea0a</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="AspNetCore.HealthChecks.AzureKeyVault" Version="3.1.1" />
