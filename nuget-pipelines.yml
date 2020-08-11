@@ -1,0 +1,33 @@
+pool:
+  name: Azure Pipelines
+variables:
+  MajorVesion: '2'
+  MinorVerion: '1'
+
+steps:
+- powershell: |
+   [xml] $xdoc = Get-Content "Wiz.Dotnet.Template.Multitenant.API.nuspec"
+   $xdoc.package.metadata.version = "$(MajorVesion).$(MinorVerion).$(Build.BuildNumber)"
+   $xdoc.Save("Wiz.Dotnet.Template.Multitenant.API.nuspec") 
+  displayName: 'PowerShell Script'
+
+- task: NuGetToolInstaller@1
+  displayName: 'Use NuGet >= 5.x'
+  inputs:
+    versionSpec: '>= 5.x'
+    checkLatest: true
+
+- task: NuGetCommand@2
+  displayName: 'NuGet pack'
+  inputs:
+    command: pack
+    packagesToPack: Wiz.Dotnet.Template.Multitenant.API.nuspec
+
+- task: NuGetCommand@2
+  displayName: 'NuGet pack'
+  inputs:
+    command: push
+    nuGetFeedType: external
+    publishFeedCredentials: nuget
+    versioningScheme: byPrereleaseNumber
+
