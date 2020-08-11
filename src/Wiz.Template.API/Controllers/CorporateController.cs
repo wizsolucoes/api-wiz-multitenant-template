@@ -17,44 +17,38 @@ namespace Wiz.Template.API.Controllers
     public class CorporateController : ControllerBase
     {
         private readonly ICorporateService _corporateService;
-        private readonly TenantAccessService<Tenant> _tenantService;
         private readonly IFinancingMethodService _financingMethodService;
 
-        public CorporateController(ICorporateService corporateService, IFinancingMethodService financingMethodService, TenantAccessService<Tenant> tenantService)
+        public CorporateController(ICorporateService corporateService, IFinancingMethodService financingMethodService)
         {
             this._corporateService = corporateService;
-            this._tenantService = tenantService;
             this._financingMethodService = financingMethodService;
         }
 
         /// <summary>
-        /// Busca configuração para o front.
+        /// Simula um emprestimo.
         /// </summary>
         /// <returns>Configuração.</returns>
         [HttpPost]
         [AllowAnonymous]
         [Route("simulate")]
-        public async Task<ActionResult<SimulatedLoanViewModel>> PostSimulate(SimulateViewModel simulate)
+        public ActionResult<SimulatedLoanViewModel> PostSimulate(SimulateViewModel simulate)
         {
-            SimulatedLoanViewModel model = null;
-     
-                model = this._financingMethodService.Calculate(simulate);
+            SimulatedLoanViewModel model = this._financingMethodService.Calculate(simulate);
 
             return Ok(model);
         }
 
         /// <summary>
-        /// Busca configuração para o front.
+        /// Realiza cálculo com base na regra de negócio.
         /// </summary>
         /// <returns>Configuração.</returns>
         [HttpPost]
         [AllowAnonymous]
-        public async Task<ActionResult<CorporateViewModel>> Post(OpViewModel op)
+        public ActionResult<CorporateViewModel> Post(OpViewModel op)
         {
-            CorporateViewModel model = null;
-            
-                model = this._corporateService.Get(op.A, op.B);
-            
+            CorporateViewModel model = this._corporateService.Get(op.A, op.B);
+
 
             return Ok(model);
         }

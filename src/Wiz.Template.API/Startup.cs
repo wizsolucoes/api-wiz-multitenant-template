@@ -19,7 +19,7 @@ using Microsoft.Extensions.PlatformAbstractions;
 using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 using NSwag;
-using NSwag.SwaggerGeneration.Processors.Security;
+using NSwag.Generation.Processors.Security;
 using Polly;
 using System;
 using System.Collections.Generic;
@@ -41,7 +41,6 @@ using Wiz.Template.API.Settings;
 using Wiz.Template.API.Swagger;
 using Wiz.Template.Domain.Settings;
 using Wiz.Template.Infra.Context;
-using Wiz.Template.Module.Base.Services.Interfaces;
 
 [assembly: ApiConventionType(typeof(MyApiConventions))]
 namespace Wiz.Template.API
@@ -96,59 +95,61 @@ namespace Wiz.Template.API
 
             if (PlatformServices.Default.Application.ApplicationName != "testhost")
             {
-                var healthCheck = services.AddHealthChecksUI(setupSettings: setup =>
-                {
-                    setup.AddWebhookNotification("Teams", Configuration["Webhook:Teams"],
-                        payload: File.ReadAllText(Path.Combine(".", "MessageCard", "ServiceDown.json")),
-                        restorePayload: File.ReadAllText(Path.Combine(".", "MessageCard", "ServiceRestore.json")),
-                        customMessageFunc: report =>
-                            {
-                                var failing = report.Entries.Where(e => e.Value.Status == UIHealthStatus.Unhealthy);
-                                return $"{AppDomain.CurrentDomain.FriendlyName}: {failing.Count()} healthchecks are failing";
-                            }
-                        );
-                }).AddHealthChecks();
+                IHealthChecksBuilder healthCheckBuilder = services.AddHealthChecks();
 
                 //500 mb
-                healthCheck.AddProcessAllocatedMemoryHealthCheck(500 * 1024 * 1024, "Process Memory", tags: new[] { "self" });
+                healthCheckBuilder.AddProcessAllocatedMemoryHealthCheck(500 * 1024 * 1024, "Process Memory", tags: new[] { "self" });
                 //500 mb
-                healthCheck.AddPrivateMemoryHealthCheck(1500 * 1024 * 1024, "Private memory", tags: new[] { "self" });
+                healthCheckBuilder.AddPrivateMemoryHealthCheck(1500 * 1024 * 1024, "Private memory", tags: new[] { "self" });
 
-                healthCheck.AddSqlServer(Configuration["ConnectionStrings:CustomerDB"], tags: new[] { "services" });
+                healthCheckBuilder.AddSqlServer(Configuration["ConnectionStrings:CustomerDB"], tags: new[] { "services" });
 
                 //dotnet add <Project> package AspNetCore.HealthChecks.Redis
-                //healthCheck.AddRedis(Configuration["Data:ConnectionStrings:Redis"], tags: new[] {"services"});
+                //healthCheckBuilder.AddRedis(Configuration["Data:ConnectionStrings:Redis"], tags: new[] {"services"});
 
                 //dotnet add <Project> package AspNetCore.HealthChecks.OpenIdConnectServer
-                //healthCheck.AddIdentityServer(new Uri(Configuration["WizID:Authority"]), "SSO Wiz", tags: new[] { "services" });
+                //healthCheckBuilder.AddIdentityServer(new Uri(Configuration["WizID:Authority"]), "SSO Wiz", tags: new[] { "services" });
 
                 //if (WebHostEnvironment.IsProduction())
                 //{
                 //dotnet add <Project> package AspNetCore.HealthChecks.AzureKeyVault
-                //healthChecks.AddAzureKeyVault(options =>
+                //healthCheckBuilder.AddAzureKeyVault(options =>
                 //{
                 //    options.UseKeyVaultUrl($"{Configuration["Azure:KeyVaultUrl"]}");
                 //}, name: "azure-key-vault",tags: new[] {"services"});
                 //}
 
-                healthCheck.AddApplicationInsightsPublisher();
+                healthCheckBuilder.AddApplicationInsightsPublisher();
+
+                HealthChecksUIBuilder healthCheck = services.AddHealthChecksUI(setupSettings: setup =>
+                {
+                    setup.AddWebhookNotification("Teams", Configuration["Webhook:Teams"],
+                        payload: File.ReadAllText(Path.Combine(".", "MessageCard", "ServiceDown.json")),
+                        restorePayload: File.ReadAllText(Path.Combine(".", "MessageCard", "ServiceRestore.json")),
+                        customMessageFunc: report =>
+                        {
+                            var failing = report.Entries.Where(e => e.Value.Status == HealthChecks.UI.Core.UIHealthStatus.Unhealthy);
+                            return $"{AppDomain.CurrentDomain.FriendlyName}: {failing.Count()} healthchecks are failing";
+                        }
+                        );
+                }).AddInMemoryStorage();
             }
 
             if (!WebHostEnvironment.IsProduction())
             {
-                services.AddSwaggerDocument(document =>
+                services.AddOpenApiDocument(document =>
                 {
                     document.DocumentName = "v1";
                     document.Version = "v1";
                     document.Title = "Whitelabel API";
                     document.Description = "API de Whitelabel";
                     document.OperationProcessors.Add(new OperationSecurityScopeProcessor("JWT"));
-                    document.AddSecurity("JWT", Enumerable.Empty<string>(), new SwaggerSecurityScheme
+                    document.AddSecurity("JWT", Enumerable.Empty<string>(), new OpenApiSecurityScheme
                     {
-                        Type = SwaggerSecuritySchemeType.ApiKey,
+                        Type = OpenApiSecuritySchemeType.ApiKey,
                         Name = HeaderNames.Authorization,
                         Description = "Token de autenticação via SSO",
-                        In = SwaggerSecurityApiKeyLocation.Header
+                        In = OpenApiSecurityApiKeyLocation.Header
                     });
                 });
             }
@@ -177,16 +178,9 @@ namespace Wiz.Template.API
             app.UseHttpsRedirection();
             app.UseResponseCompression();
 
-            app.UseCors(builder =>
-            {
-                builder.AllowAnyOrigin();
-                builder.AllowAnyMethod();
-                builder.AllowAnyHeader();
-            });
-
             if (!env.IsProduction())
             {
-                app.UseSwagger();
+                app.UseOpenApi();
                 app.UseSwaggerUi3();
             }
 
